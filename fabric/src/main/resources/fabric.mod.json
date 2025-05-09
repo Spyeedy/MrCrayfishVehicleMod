@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "vehicle",
+  "version": "${version}",
+  "name": "MrCrayfish's Vehicle Mod",
+  "description": "A mod that adds vehicles into Minecraft!",
+  "authors": [
+    "MrCrayfish"
+  ],
+  "contributors": [
+    "Spyeedy"
+  ],
+  "contact": {
+    "sources": "https://github.com/MrCrayfish/MrCrayfishVehicleMod"
+  },
+  "license": "GNU General Public License v3.0",
+  "icon": "assets/vehicle/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.mrcrayfish.vehicle.fabric.VehicleModFabric"
+    ],
+    "client": [
+      "com.mrcrayfish.vehicle.fabric.client.VehicleModFabricClient"
+    ]
+  },
+  "mixins": [
+    "vehicle.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "architectury": ">=13.0.8",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}

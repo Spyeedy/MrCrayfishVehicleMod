@@ -1,123 +1,84 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-
-buildscript {
-    repositories {
-        maven { url = 'https://files.minecraftforge.net/maven' }
-        jcenter()
-        mavenCentral()
-    }
-    dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '4.1.+', changing: true
-    }
-}
-apply plugin: 'net.minecraftforge.gradle'
-apply plugin: 'maven-publish'
-
-version = "0.45.2-1.16.5"
-group = "com.mrcrayfish"
-archivesBaseName = "vehicle-mod"
-
-java.toolchain.languageVersion = JavaLanguageVersion.of(8)
-
-sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-minecraft {
-    mappings channel: "official", version: "1.16.5"
-
-    runs {
-        client {
-            workingDirectory project.file('run')
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                vehicle {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        server {
-            workingDirectory project.file('run')
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                vehicle {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        data {
-            workingDirectory project.file('run')
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            property 'forge.logging.console.level', 'debug'
-            args '--mod', 'vehicle', '--all', '--output', file('src/generated/resources/')
-            mods {
-                vehicle {
-                    source sourceSets.main
-                }
-            }
-        }
-    }
+plugins {
+    id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
+    id 'architectury-plugin' version '3.4-SNAPSHOT'
+    id 'com.gradleup.shadow' version '8.3.6' apply false
 }
 
-repositories {
-    maven {
-        url = "https://www.cursemaven.com"
-    }
+architectury {
+    minecraft = project.minecraft_version
 }
 
-dependencies {
-    minecraft 'net.minecraftforge:forge:1.16.5-36.2.20'
+allprojects {
+    group = rootProject.maven_group
+    version = rootProject.mod_version
 
-    compile fg.deobf('curse.maven:obfuscate-289380:3336021')
-    compile fg.deobf('curse.maven:controllable-317269:3519536')
-    compile fg.deobf('curse.maven:configured-457570:3546348')
-    compile fg.deobf('curse.maven:catalogue-459701:3529457')
-}
-
-processResources {
-    doLast {
-        fileTree(dir: outputs.files.asPath, include: "**/*.json").each {
-            File file -> file.text = JsonOutput.toJson(new JsonSlurper().parse(file))
-        }
-    }
-}
-
-jar {
-    manifest {
-        attributes([
-            "Specification-Title": "Vehicle Mod",
-            "Specification-Vendor": "MrCrayfish",
-            "Specification-Version": "1",
-            "Implementation-Title": "Vehicle Mod",
-            "Implementation-Version": project.version,
-            "Implementation-Vendor" : "MrCrayfish",
-            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-}
-
-def reobfFile = file("$buildDir/reobfJar/output.jar")
-def reobfArtifact = artifacts.add('default', reobfFile) {
-    type 'jar'
-    builtBy 'reobfJar'
-}
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact reobfArtifact
-        }
-    }
     repositories {
         maven {
-            url "file:///X:/localmaven/mcmods"
+            name = 'ParchmentMC'
+            url = 'https://maven.parchmentmc.org/'
+        }
+    }
+}
+
+subprojects {
+    apply plugin: 'dev.architectury.loom'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'maven-publish'
+
+    base {
+        // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
+        archivesName = "$rootProject.archives_name-$project.name"
+    }
+
+    repositories {
+        // Add repositories to retrieve artifacts from in here.
+        // You should only use this when depending on other mods because
+        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
+        // for more information about repositories.
+    }
+
+    loom {
+        silentMojangMappingsLicense()
+    }
+
+    dependencies {
+        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+        mappings loom.layered() {
+            officialMojangMappings()
+            parchment("org.parchmentmc.data:parchment-$rootProject.minecraft_version:$rootProject.parchment_mappings")
+        }
+    }
+
+    java {
+        // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+        // if it is present.
+        // If you remove this line, sources will not be generated.
+        withSourcesJar()
+
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = 21
+    }
+
+    // Configure Maven publishing.
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                artifactId = base.archivesName.get()
+                from components.java
+            }
+        }
+
+        // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+        repositories {
+            // Add repositories to publish to here.
+            // Notice: This block does NOT have the same function as the block in the top level.
+            // The repositories here will be used for publishing your artifact, not for
+            // retrieving dependencies.
         }
     }
 }
